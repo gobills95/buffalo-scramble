@@ -145,5 +145,72 @@
         </script>
 
     {% endif %}
+
+    {% if result is not none %}
+        <div
+            id="completed-game-data"
+            data-result="{{ result }}"
+            data-player-name="{{ player_name }}"
+            data-hint="{{ hint }}"
+            hidden
+        ></div>
+    {% endif %}
+
+<script>
+    const challengeNumber = "{{ challenge_number }}";
+    const storageKey = `buffalo-scramble-${challengeNumber}`;
+
+    const savedResult = localStorage.getItem(storageKey);
+
+    if (savedResult) {
+        const completedGame = JSON.parse(savedResult);
+        const form = document.querySelector("form");
+
+        if (form) {
+            form.style.display = "none";
+
+            const savedResultBox = document.createElement("div");
+            savedResultBox.className = 
+                completedGame.result === "correct"
+                ? "result correct"
+                : "result incorrect";
+
+            const resultText =
+                completedGame.result === "correct"
+                ? "✅ Correct!"
+                : "❌ Incorrect!";
+
+            const resultParagraph = document.createElement("p");
+            resultParagraph.textContent = resultText;
+
+            const answerParagraph = document.createElement("p");
+            answerParagraph.className = "answer";
+            answerParagraph.textContent =
+                "Answer: " + completedGame.playerName;
+
+            savedResultBox.append(resultParagraph, answerParagraph);
+
+            form.insertAdjacentElement("afterend", savedResultBox);
+        }
+    }
+
+    const completedGameData = document.getElementById("completed-game-data");
+
+    if (completedGameData) {
+        const completedGame = {
+            result: completedGameData.dataset.result,
+            playerName: completedGameData.dataset.playerName,
+            hint: completedGameData.dataset.hint
+        };
+
+        localStorage.setItem(
+            storageKey,
+            JSON.stringify(completedGame)
+        );
+
+    }
+
+</script>
+
 </body>
 </html>
