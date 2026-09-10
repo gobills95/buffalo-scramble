@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+<title>Buffalo Scramble</title>
+
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='style.css') }}"
+>
+</head>
+
+<body>
+    <main class="game-container">
+
+        <header class="game-header">
+            <h1>BUFFALO SCRAMBLE</h1>
+
+            <p class="challenge-number">
+                Challenge #{{ challenge_number }}
+            </p>
+        </header>
+
+        <section class="game-card">
+
+            <p class="label">TODAY'S HINT</p>
+
+            <p class="hint">
+                {{ hint }}
+            </p>
+
+            <p class="label puzzle-label">
+                SCRAMBLED PLAYER
+            </p>
+
+            <p class="scrambled-name">
+                {{ scrambled_name }}
+            </p>
+
+            {% if result is none %}
+
+                <form method="POST">
+                    <label for="guess">Your guess</label>
+
+                    <input
+                        type="text"
+                        id="guess"
+                        name="guess"
+                        placeholder="Enter player name"
+                        autocomplete="off"
+                        autocapitalize="words"
+                        required
+                    >
+
+                    <button type="submit">
+                        Submit Guess
+                    </button>
+                </form>
+
+            {% elif result == "correct" %}
+
+                <div class="result correct">
+                    <p>✅ Correct!</p>
+
+                    <p class="answer">
+                        Answer: {{ player_name }}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="share-button"
+                    id="share-button"
+                    data-result="🟩"
+                >
+                    Share Result
+                </button>
+
+                <p class="share-message" id="share-message"></p>
+
+            {% else %}
+
+                <div class="result incorrect">
+                    <p>❌ Incorrect!</p>
+
+                    <p class="answer">
+                        Answer: {{ player_name }}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    class="share-button"
+                    id="share-button"
+                    data-result="🟥"
+                >
+                    Share Result
+                </button>
+
+                <p class="share-message" id="share-message"></p>
+
+            {% endif %}
+
+        </section>
+
+    </main>
+
+    {% if result is not none %}
+
+        <script>
+            const shareButton = document.getElementById("share-button");
+            const shareMessage = document.getElementById("share-message");
+
+            shareButton.addEventListener("click", async function () {
+                const resultSquare = shareButton.dataset.result;
+
+                const shareText =
+                    `Buffalo Scramble #{{ challenge_number }}\n` +
+                    `${resultSquare}\n` +
+                    `Hint: {{ hint }}`;
+
+                try {
+                    if (navigator.share) {
+                        await navigator.share({
+                            title: "Buffalo Scramble",
+                            text: shareText
+                        });
+                    } else {
+                        await navigator.clipboard.writeText(shareText);
+                        shareMessage.textContent = "Result copied!";
+                    }
+                } catch (error) {
+                    if (error.name !== "AbortError") {
+                        shareMessage.textContent =
+                            "Unable to share the result.";
+                    }
+                }
+            });
+        </script>
+
+    {% endif %}
+</body>
+</html>
