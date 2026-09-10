@@ -1,12 +1,14 @@
 import random
-from datetime import date
+from datetime import datetime, time, timedelta
 from flask import Flask, render_template, request
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 PLAYERS_FILE = BASE_DIR / "players.txt"
+EASTERN_TIME = ZoneInfo("America/New_York")
 
 def scramble_word(word, random_generator):
     word = word.upper()
@@ -45,8 +47,13 @@ def home():
     if not players:
         return "No players found in players.txt", 500
 
-    today = date.today()
+    today = datetime.now(EASTERN_TIME).date()
     challenge_number = today.toordinal()
+    next_midnight = datetime.combine(
+        today + timedelta(days=1),
+        time.min,
+        tzinfo=EASTERN_TIME
+    )
 
     player_index = challenge_number % len(players)
     selected_player = players[player_index]
@@ -84,7 +91,8 @@ def home():
         hint=hint,
         scrambled_name=scrambled_name,
         result=result,
-        player_name=player_name
+        player_name=player_name,
+        next_midnight=next_midnight.isoformat()
     )
 
 

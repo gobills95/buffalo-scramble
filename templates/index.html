@@ -78,6 +78,7 @@
                     class="share-button"
                     id="share-button"
                     data-result="🟩"
+                    data-hint="{{ hint }}"
                 >
                     Share Result
                 </button>
@@ -99,6 +100,7 @@
                     class="share-button"
                     id="share-button"
                     data-result="🟥"
+                    data-hint="{{ hint }}"
                 >
                     Share Result
                 </button>
@@ -107,44 +109,18 @@
 
             {% endif %}
 
+            <div
+                class="countdown"
+                id="next-challenge"
+                data-next-midnight="{{ next_midnight }}"
+            >
+                <p class="countdown-label">NEXT CHALLENGE</p>
+                <p class="countdown-time" id="countdown-time">--:--:--</p>
+            </div>
+
         </section>
 
     </main>
-
-    {% if result is not none %}
-
-        <script>
-            const shareButton = document.getElementById("share-button");
-            const shareMessage = document.getElementById("share-message");
-
-            shareButton.addEventListener("click", async function () {
-                const resultSquare = shareButton.dataset.result;
-
-                const shareText =
-                    `Buffalo Scramble #{{ challenge_number }}\n` +
-                    `${resultSquare}\n` +
-                    `Hint: {{ hint }}`;
-
-                try {
-                    if (navigator.share) {
-                        await navigator.share({
-                            title: "Buffalo Scramble",
-                            text: shareText
-                        });
-                    } else {
-                        await navigator.clipboard.writeText(shareText);
-                        shareMessage.textContent = "Result copied!";
-                    }
-                } catch (error) {
-                    if (error.name !== "AbortError") {
-                        shareMessage.textContent =
-                            "Unable to share the result.";
-                    }
-                }
-            });
-        </script>
-
-    {% endif %}
 
     {% if result is not none %}
         <div
@@ -159,6 +135,52 @@
 <script>
     const challengeNumber = "{{ challenge_number }}";
     const storageKey = `buffalo-scramble-${challengeNumber}`;
+
+    console.log("navigator.share available:", Boolean(navigator.share));
+
+    async function shareResult(shareButton, shareMessage) {
+        const shareText =
+            `Buffalo Scramble #${challengeNumber}\n` +
+            `${shareButton.dataset.result}\n` +
+            `Hint: ${shareButton.dataset.hint}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "Buffalo Scramble",
+                    text: shareText,
+                    url: window.location.origin
+                });
+            } catch (error) {
+                if (error.name !== "AbortError") {
+                    shareMessage.textContent =
+                        "Unable to share the result.";
+                }
+            }
+
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(shareText);
+            shareMessage.textContent = "Result copied!";
+        } catch (error) {
+            shareMessage.textContent = "Unable to copy the result.";
+        }
+    }
+
+    function attachShareBehavior(shareButton, shareMessage) {
+        shareButton.addEventListener("click", function () {
+            shareResult(shareButton, shareMessage);
+        });
+    }
+
+    const existingShareButton = document.getElementById("share-button");
+    const existingShareMessage = document.getElementById("share-message");
+
+    if (existingShareButton && existingShareMessage) {
+        attachShareBehavior(existingShareButton, existingShareMessage);
+    }
 
     const savedResult = localStorage.getItem(storageKey);
 
@@ -191,6 +213,30 @@
             savedResultBox.append(resultParagraph, answerParagraph);
 
             form.insertAdjacentElement("afterend", savedResultBox);
+
+            const savedShareButton = document.createElement("button");
+            savedShareButton.type = "button";
+            savedShareButton.className = "share-button";
+            savedShareButton.id = "share-button";
+            savedShareButton.dataset.result =
+                completedGame.result === "correct" ? "🟩" : "🟥";
+            savedShareButton.dataset.hint = completedGame.hint;
+            savedShareButton.textContent = "Share Result";
+
+            const savedShareMessage = document.createElement("p");
+            savedShareMessage.className = "share-message";
+            savedShareMessage.id = "share-message";
+
+            savedResultBox.insertAdjacentElement(
+                "afterend",
+                savedShareButton
+            );
+            savedShareButton.insertAdjacentElement(
+                "afterend",
+                savedShareMessage
+            );
+
+            attachShareBehavior(savedShareButton, savedShareMessage);
         }
     }
 
@@ -210,6 +256,36 @@
 
     }
 
+</script>
+
+<script>
+    const nextChallenge = document.getElementById("next-challenge");
+    const countdownTime = document.getElementById("countdown-time");
+    const nextMidnight = new Date(
+        nextChallenge.dataset.nextMidnight
+    ).getTime();
+
+    function updateCountdown() {
+        const remainingSeconds = Math.max(
+            0,
+            Math.ceil((nextMidnight - Date.now()) / 1000)
+        );
+
+        const hours = String(Math.floor(remainingSeconds / 3600))
+            .padStart(2, "0");
+        const minutes = String(Math.floor((remainingSeconds % 3600) / 60))
+            .padStart(2, "0");
+        const seconds = String(remainingSeconds % 60).padStart(2, "0");
+
+        countdownTime.textContent = `${hours}:${minutes}:${seconds}`;
+
+        if (remainingSeconds === 0) {
+            window.location.reload();
+        }
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
 </script>
 
 </body>
