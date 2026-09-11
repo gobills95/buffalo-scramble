@@ -8,6 +8,7 @@ app = Flask(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 PLAYERS_FILE = BASE_DIR / "players.txt"
+TRIVIA_FILE = BASE_DIR / "trivia.txt"
 EASTERN_TIME = ZoneInfo("America/New_York")
 
 def scramble_word(word, random_generator):
@@ -40,12 +41,41 @@ def load_players():
     return players
 
 
+def load_trivia():
+    trivia_questions = []
+
+    with TRIVIA_FILE.open("r", encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+
+            if line:
+                parts = [part.strip() for part in line.split("|")]
+
+                if len(parts) != 6:
+                    continue
+
+                question, answer, *options = parts
+
+                if answer in options:
+                    trivia_questions.append({
+                        "question": question,
+                        "answer": answer,
+                        "options": options
+                    })
+
+    return trivia_questions
+
+
 @app.route("/", methods=["GET", "POST"])
 def home():
     players = load_players()
+    trivia_questions = load_trivia()
 
     if not players:
         return "No players found in players.txt", 500
+
+    if not trivia_questions:
+        return "No trivia questions found in trivia.txt", 500
 
     today = datetime.now(EASTERN_TIME).date()
     challenge_number = today.toordinal()
@@ -72,18 +102,31 @@ def home():
         for part in name_parts
     )
 
+    trivia_index = challenge_number % len(trivia_questions)
+    selected_trivia = trivia_questions[trivia_index]
+
     result = None
+    trivia_result = None
 
     if request.method == "POST":
-        guess = request.form.get("guess", "")
+        if request.form.get("action") == "trivia":
+            result = request.form.get("scramble_result")
+            trivia_answer = request.form.get("trivia_answer", "")
 
-        cleaned_guess = " ".join(guess.upper().split())
-        correct_answer = player_name.upper()
-
-        if cleaned_guess == correct_answer:
-            result = "correct"
+            if trivia_answer == selected_trivia["answer"]:
+                trivia_result = "correct"
+            else:
+                trivia_result = "incorrect"
         else:
-            result = "incorrect"
+            guess = request.form.get("guess", "")
+
+            cleaned_guess = " ".join(guess.upper().split())
+            correct_answer = player_name.upper()
+
+            if cleaned_guess == correct_answer:
+                result = "correct"
+            else:
+                result = "incorrect"
 
     return render_template(
         "index.html",
@@ -91,6 +134,10 @@ def home():
         hint=hint,
         scrambled_name=scrambled_name,
         result=result,
+        trivia_question=selected_trivia["question"],
+        trivia_options=selected_trivia["options"],
+        trivia_answer=selected_trivia["answer"],
+        trivia_result=trivia_result,
         player_name=player_name,
         next_midnight=next_midnight.isoformat()
     )

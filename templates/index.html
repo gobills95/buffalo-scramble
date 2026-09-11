@@ -79,6 +79,7 @@
                     id="share-button"
                     data-result="🟩"
                     data-hint="{{ hint }}"
+                    data-trivia-result="{{ trivia_result or '' }}"
                 >
                     Share Result
                 </button>
@@ -101,6 +102,7 @@
                     id="share-button"
                     data-result="🟥"
                     data-hint="{{ hint }}"
+                    data-trivia-result="{{ trivia_result or '' }}"
                 >
                     Share Result
                 </button>
@@ -108,6 +110,67 @@
                 <p class="share-message" id="share-message"></p>
 
             {% endif %}
+
+            <section
+                class="trivia-section"
+                id="trivia-section"
+                {% if result is none %}hidden{% endif %}
+            >
+                <p class="label trivia-label">BONUS TRIVIA</p>
+
+                <p class="trivia-question">
+                    {{ trivia_question }}
+                </p>
+
+                {% if trivia_result is none %}
+
+                    <form method="POST" class="trivia-form">
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="trivia"
+                        >
+                        <input
+                            type="hidden"
+                            name="scramble_result"
+                            value="{{ result }}"
+                        >
+
+                        <fieldset>
+                            <legend>Choose one answer</legend>
+
+                            {% for option in trivia_options %}
+                                <label class="trivia-option">
+                                    <input
+                                        type="radio"
+                                        name="trivia_answer"
+                                        value="{{ option }}"
+                                        required
+                                    >
+                                    <span>{{ option }}</span>
+                                </label>
+                            {% endfor %}
+                        </fieldset>
+
+                        <button type="submit">Submit Trivia Answer</button>
+                    </form>
+
+                {% elif trivia_result == "correct" %}
+
+                    <div class="result correct trivia-result">
+                        <p>✅ Correct!</p>
+                        <p class="answer">Answer: {{ trivia_answer }}</p>
+                    </div>
+
+                {% else %}
+
+                    <div class="result incorrect trivia-result">
+                        <p>❌ Incorrect!</p>
+                        <p class="answer">Answer: {{ trivia_answer }}</p>
+                    </div>
+
+                {% endif %}
+            </section>
 
             <div
                 class="countdown"
@@ -128,6 +191,8 @@
             data-result="{{ result }}"
             data-player-name="{{ player_name }}"
             data-hint="{{ hint }}"
+            data-trivia-result="{{ trivia_result or '' }}"
+            data-trivia-answer="{{ trivia_answer }}"
             hidden
         ></div>
     {% endif %}
@@ -139,10 +204,16 @@
     console.log("navigator.share available:", Boolean(navigator.share));
 
     async function shareResult(shareButton, shareMessage) {
+        const triviaSquare = shareButton.dataset.triviaResult === "correct"
+            ? "🟩"
+            : shareButton.dataset.triviaResult === "incorrect"
+                ? "🟥"
+                : "";
         const shareText =
             `Buffalo Scramble #${challengeNumber}\n` +
             `${shareButton.dataset.result}\n` +
-            `Hint: ${shareButton.dataset.hint}`;
+            `Hint: ${shareButton.dataset.hint}` +
+            (triviaSquare ? `\nTrivia: ${triviaSquare}` : "");
 
         if (navigator.share) {
             try {
@@ -182,9 +253,10 @@
         attachShareBehavior(existingShareButton, existingShareMessage);
     }
 
+    const completedGameData = document.getElementById("completed-game-data");
     const savedResult = localStorage.getItem(storageKey);
 
-    if (savedResult) {
+    if (savedResult && !completedGameData) {
         const completedGame = JSON.parse(savedResult);
         const form = document.querySelector("form");
 
@@ -221,6 +293,8 @@
             savedShareButton.dataset.result =
                 completedGame.result === "correct" ? "🟩" : "🟥";
             savedShareButton.dataset.hint = completedGame.hint;
+            savedShareButton.dataset.triviaResult =
+                completedGame.triviaResult || "";
             savedShareButton.textContent = "Share Result";
 
             const savedShareMessage = document.createElement("p");
@@ -237,16 +311,55 @@
             );
 
             attachShareBehavior(savedShareButton, savedShareMessage);
+
+            const triviaSection = document.getElementById("trivia-section");
+            triviaSection.hidden = false;
+
+            const triviaForm = triviaSection.querySelector("form");
+            const triviaResult = completedGame.triviaResult;
+
+            if (triviaForm) {
+                triviaForm.querySelector(
+                    'input[name="scramble_result"]'
+                ).value = completedGame.result;
+            }
+
+            if (triviaResult) {
+                triviaForm.remove();
+
+                const savedTriviaResult = document.createElement("div");
+                savedTriviaResult.className =
+                    triviaResult === "correct"
+                    ? "result correct trivia-result"
+                    : "result incorrect trivia-result";
+
+                const triviaResultParagraph = document.createElement("p");
+                triviaResultParagraph.textContent =
+                    triviaResult === "correct"
+                    ? "✅ Correct!"
+                    : "❌ Incorrect!";
+
+                const triviaAnswerParagraph = document.createElement("p");
+                triviaAnswerParagraph.className = "answer";
+                triviaAnswerParagraph.textContent =
+                    "Answer: " + completedGame.triviaAnswer;
+
+                savedTriviaResult.append(
+                    triviaResultParagraph,
+                    triviaAnswerParagraph
+                );
+                triviaSection.append(savedTriviaResult);
+            }
         }
     }
-
-    const completedGameData = document.getElementById("completed-game-data");
 
     if (completedGameData) {
         const completedGame = {
             result: completedGameData.dataset.result,
             playerName: completedGameData.dataset.playerName,
-            hint: completedGameData.dataset.hint
+            hint: completedGameData.dataset.hint,
+            triviaResult: completedGameData.dataset.triviaResult,
+            triviaAnswer: completedGameData.dataset.triviaAnswer
         };
 
         localStorage.setItem(

@@ -213,3 +213,61 @@ button:active {
     font-weight: 700;
     letter-spacing: 1px;
 }
+
+.trivia-section {
+    margin-top: 32px;
+}
+
+.trivia-label {
+    margin-bottom: 10px;
+}
+
+.trivia-question {
+    margin: 0;
+    color: #071d3b;
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.trivia-form fieldset {
+    margin: 20px 0 0;
+    padding: 0;
+    border: 0;
+}
+
+.trivia-form legend {
+    margin-bottom: 10px;
+    color: #617087;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.trivia-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 10px 12px;
+    border: 1px solid #c8d0da;
+    border-radius: 10px;
+    color: #071d3b;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.trivia-option + .trivia-option {
+    margin-top: 8px;
+}
+
+.trivia-option input {
+    width: auto;
+    min-height: auto;
+    margin: 0;
+    accent-color: #ff0000;
+}
+
+.trivia-result {
+    margin-top: 20px;
+}
