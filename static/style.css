@@ -218,6 +218,37 @@ button:active {
     margin-top: 32px;
 }
 
+.trivia-focus #scramble-section {
+    display: none;
+}
+
+.trivia-focus .trivia-section {
+    margin-top: 0;
+    padding: 8px 4px 4px;
+    animation: trivia-arrival 420ms ease-out;
+}
+
+.trivia-focus .trivia-label {
+    color: #ff0000;
+    font-size: 14px;
+}
+
+.trivia-focus .trivia-question {
+    font-size: 22px;
+}
+
+@keyframes trivia-arrival {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .trivia-label {
     margin-bottom: 10px;
 }

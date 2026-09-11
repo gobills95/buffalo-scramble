@@ -27,7 +27,12 @@
             </p>
         </header>
 
-        <section class="game-card">
+        <section
+            class="game-card{% if result is not none and trivia_result is none %} trivia-focus{% endif %}"
+            id="game-card"
+        >
+
+            <section id="scramble-section">
 
             <p class="label">TODAY'S HINT</p>
 
@@ -110,6 +115,8 @@
                 <p class="share-message" id="share-message"></p>
 
             {% endif %}
+
+            </section>
 
             <section
                 class="trivia-section"
@@ -315,8 +322,14 @@
             const triviaSection = document.getElementById("trivia-section");
             triviaSection.hidden = false;
 
+            const gameCard = document.getElementById("game-card");
+
             const triviaForm = triviaSection.querySelector("form");
             const triviaResult = completedGame.triviaResult;
+
+            if (!triviaResult) {
+                gameCard.classList.add("trivia-focus");
+            }
 
             if (triviaForm) {
                 triviaForm.querySelector(
