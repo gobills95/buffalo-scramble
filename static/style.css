@@ -15,7 +15,13 @@ body {
     justify-content: center;
     align-items: flex-start;
 
-    background-color: #ffffff;
+    background: linear-gradient(
+        to bottom,
+        #d9e0e8 0%,
+        #eef1f4 42%,
+        #ffffff 100%
+    );
+    background-attachment: fixed;
     color: #ffffff;
 
     font-family:
@@ -200,7 +206,7 @@ button:active {
 
 .share-message {
     min-height: 20px;
-    margin: 12px 0 0;
+    margin: 2px 0 0;
 
     color: #617087;
     font-size: 14px;
@@ -235,7 +241,7 @@ button:active {
 }
 
 .countdown {
-    margin-top: 20px;
+    margin-top: 5px;
     text-align: center;
 }
 
