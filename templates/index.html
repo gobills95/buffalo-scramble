@@ -180,6 +180,15 @@
             </section>
 
             <div
+                class="completion-message"
+                id="completion-message"
+                {% if trivia_result is none %}hidden{% endif %}
+            >
+                <p class="completion-title">Today's challenge complete!</p>
+                <p>Come back tomorrow for a new scramble.</p>
+            </div>
+
+            <div
                 class="countdown"
                 id="next-challenge"
                 data-next-midnight="{{ next_midnight }}"
@@ -362,6 +371,10 @@
                     triviaAnswerParagraph
                 );
                 triviaSection.append(savedTriviaResult);
+
+                document.getElementById(
+                    "completion-message"
+                ).hidden = false;
             }
         }
     }
