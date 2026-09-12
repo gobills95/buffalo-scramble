@@ -78,19 +78,6 @@
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    class="share-button"
-                    id="share-button"
-                    data-result="🟩"
-                    data-hint="{{ hint }}"
-                    data-trivia-result="{{ trivia_result or '' }}"
-                >
-                    Share Result
-                </button>
-
-                <p class="share-message" id="share-message"></p>
-
             {% else %}
 
                 <div class="result incorrect">
@@ -100,19 +87,6 @@
                         Answer: {{ player_name }}
                     </p>
                 </div>
-
-                <button
-                    type="button"
-                    class="share-button"
-                    id="share-button"
-                    data-result="🟥"
-                    data-hint="{{ hint }}"
-                    data-trivia-result="{{ trivia_result or '' }}"
-                >
-                    Share Result
-                </button>
-
-                <p class="share-message" id="share-message"></p>
 
             {% endif %}
 
@@ -187,6 +161,21 @@
                 <p class="completion-title">Today's challenge complete!</p>
                 <p>Come back tomorrow for a new scramble.</p>
             </div>
+
+            {% if trivia_result is not none %}
+                <button
+                    type="button"
+                    class="share-button"
+                    id="share-button"
+                    data-result="{% if result == 'correct' %}🟩{% else %}🟥{% endif %}"
+                    data-hint="{{ hint }}"
+                    data-trivia-result="{{ trivia_result }}"
+                >
+                    Share Result
+                </button>
+
+                <p class="share-message" id="share-message"></p>
+            {% endif %}
 
             <div
                 class="countdown"
@@ -302,32 +291,6 @@
 
             form.insertAdjacentElement("afterend", savedResultBox);
 
-            const savedShareButton = document.createElement("button");
-            savedShareButton.type = "button";
-            savedShareButton.className = "share-button";
-            savedShareButton.id = "share-button";
-            savedShareButton.dataset.result =
-                completedGame.result === "correct" ? "🟩" : "🟥";
-            savedShareButton.dataset.hint = completedGame.hint;
-            savedShareButton.dataset.triviaResult =
-                completedGame.triviaResult || "";
-            savedShareButton.textContent = "Share Result";
-
-            const savedShareMessage = document.createElement("p");
-            savedShareMessage.className = "share-message";
-            savedShareMessage.id = "share-message";
-
-            savedResultBox.insertAdjacentElement(
-                "afterend",
-                savedShareButton
-            );
-            savedShareButton.insertAdjacentElement(
-                "afterend",
-                savedShareMessage
-            );
-
-            attachShareBehavior(savedShareButton, savedShareMessage);
-
             const triviaSection = document.getElementById("trivia-section");
             triviaSection.hidden = false;
 
@@ -375,6 +338,34 @@
                 document.getElementById(
                     "completion-message"
                 ).hidden = false;
+
+                const savedShareButton = document.createElement("button");
+                savedShareButton.type = "button";
+                savedShareButton.className = "share-button";
+                savedShareButton.id = "share-button";
+                savedShareButton.dataset.result =
+                    completedGame.result === "correct" ? "🟩" : "🟥";
+                savedShareButton.dataset.hint = completedGame.hint;
+                savedShareButton.dataset.triviaResult = triviaResult;
+                savedShareButton.textContent = "Share Result";
+
+                const savedShareMessage = document.createElement("p");
+                savedShareMessage.className = "share-message";
+                savedShareMessage.id = "share-message";
+
+                const completionMessage = document.getElementById(
+                    "completion-message"
+                );
+                completionMessage.insertAdjacentElement(
+                    "afterend",
+                    savedShareButton
+                );
+                savedShareButton.insertAdjacentElement(
+                    "afterend",
+                    savedShareMessage
+                );
+
+                attachShareBehavior(savedShareButton, savedShareMessage);
             }
         }
     }
