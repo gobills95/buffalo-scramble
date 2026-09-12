@@ -181,6 +181,7 @@
                 class="countdown"
                 id="next-challenge"
                 data-next-midnight="{{ next_midnight }}"
+                {% if trivia_result is none %}hidden{% endif %}
             >
                 <p class="countdown-label">NEXT CHALLENGE</p>
                 <p class="countdown-time" id="countdown-time">--:--:--</p>
@@ -337,6 +338,9 @@
 
                 document.getElementById(
                     "completion-message"
+                ).hidden = false;
+                document.getElementById(
+                    "next-challenge"
                 ).hidden = false;
 
                 const savedShareButton = document.createElement("button");
