@@ -104,6 +104,14 @@ def home():
 
     trivia_index = challenge_number % len(trivia_questions)
     selected_trivia = trivia_questions[trivia_index]
+    trivia_options = selected_trivia["options"][:]
+    daily_random.shuffle(trivia_options)
+
+    if len(trivia_options) > 1 and trivia_options[0] == selected_trivia["answer"]:
+        trivia_options[0], trivia_options[1] = (
+            trivia_options[1],
+            trivia_options[0]
+        )
 
     result = None
     trivia_result = None
@@ -135,7 +143,7 @@ def home():
         scrambled_name=scrambled_name,
         result=result,
         trivia_question=selected_trivia["question"],
-        trivia_options=selected_trivia["options"],
+        trivia_options=trivia_options,
         trivia_answer=selected_trivia["answer"],
         trivia_result=trivia_result,
         player_name=player_name,
