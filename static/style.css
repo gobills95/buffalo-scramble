@@ -31,20 +31,36 @@ body {
 }
 
 .game-header {
-    margin: 22px 0 28px;
+    margin: 22px 0 15px;
     text-align: center;
 }
 
 .game-header h1 {
     margin: 0;
-    color: #ff0000;
+    padding: 10px 16px 30px;
+    background:
+        linear-gradient(
+            to bottom,
+            #050505 0,
+            #050505 68%,
+            #ffffff 68%,
+            #ffffff 75%,
+            #c8102e 75%,
+            #c8102e 87%,
+            #050505 87%,
+            #050505 100%
+        );
+    border: 2px solid #050505;
+    border-radius: 10px;
+    box-shadow: 0 6px 0 #c8102e;
+    color: #ffffff;
     font-size: 28px;
     letter-spacing: 1px;
 }
 
 .challenge-number {
-    margin: 8px 0 0;
-    color: #aebdd1;
+    margin: 15px 0 0;
+    color: #617087;
     font-size: 15px;
 }
 
