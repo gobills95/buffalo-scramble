@@ -31,11 +31,18 @@ def get_db_connection():
 
 
 def init_analytics_db():
+    database_url = os.environ.get("DATABASE_URL")
+    id_column = (
+        "BIGSERIAL PRIMARY KEY"
+        if database_url
+        else "INTEGER PRIMARY KEY AUTOINCREMENT"
+    )
+
     with get_db_connection() as connection:
         connection.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS submissions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {id_column},
                 challenge_number INTEGER NOT NULL,
                 event_type TEXT NOT NULL,
                 result TEXT NOT NULL,
