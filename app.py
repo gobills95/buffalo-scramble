@@ -246,6 +246,17 @@ def analytics_summary():
             ORDER BY event_type, result
             """
         ).fetchall()
+        daily_rows = connection.execute(
+            """
+            SELECT
+                DATE(submitted_at) AS submission_date,
+                event_type,
+                COUNT(*) AS count
+            FROM submissions
+            GROUP BY DATE(submitted_at), event_type
+            ORDER BY submission_date DESC, event_type
+            """
+        ).fetchall()
 
     summary = []
     for row in rows:
@@ -254,7 +265,23 @@ def analytics_summary():
     if not summary:
         summary.append("No submissions yet.")
 
-    html = "<h1>Buffalo Scramble Analytics</h1><ul><li>" + "</li><li>".join(summary) + "</li></ul>"
+    daily_summary = [
+        f"{row['submission_date']} - {row['event_type']}: {row['count']}"
+        for row in daily_rows
+    ]
+
+    if not daily_summary:
+        daily_summary.append("No daily submissions yet.")
+
+    html = (
+        "<h1>Buffalo Scramble Analytics</h1>"
+        "<h2>Overall totals</h2><ul><li>"
+        + "</li><li>".join(summary)
+        + "</li></ul>"
+        "<h2>Engagement by date</h2><ul><li>"
+        + "</li><li>".join(daily_summary)
+        + "</li></ul>"
+    )
     return html
 
 
