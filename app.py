@@ -16,6 +16,15 @@ EASTERN_TIME = ZoneInfo("America/New_York")
 
 
 def get_db_connection():
+    database_url = os.environ.get("DATABASE_URL")
+
+    if database_url:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        database_url = database_url.replace("postgres://", "postgresql://", 1)
+        return psycopg.connect(database_url, row_factory=dict_row)
+
     connection = sqlite3.connect(ANALYTICS_DB)
     connection.row_factory = sqlite3.Row
     return connection
@@ -39,14 +48,16 @@ def init_analytics_db():
 
 def log_submission(challenge_number, event_type, result):
     with get_db_connection() as connection:
+        database_url = os.environ.get("DATABASE_URL")
+        placeholder = "%s" if database_url else "?"
         connection.execute(
-            """
+            f"""
             INSERT INTO submissions (
                 challenge_number,
                 event_type,
                 result,
                 submitted_at
-            ) VALUES (?, ?, ?, datetime('now'))
+            ) VALUES ({placeholder}, {placeholder}, {placeholder}, CURRENT_TIMESTAMP)
             """,
             (challenge_number, event_type, result),
         )
