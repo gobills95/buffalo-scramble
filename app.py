@@ -1,4 +1,6 @@
+import os
 import random
+import sqlite3
 from datetime import datetime, time, timedelta
 from flask import Flask, render_template, request
 from pathlib import Path
@@ -9,7 +11,64 @@ app = Flask(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 PLAYERS_FILE = BASE_DIR / "players.txt"
 TRIVIA_FILE = BASE_DIR / "trivia.txt"
+ANALYTICS_DB = BASE_DIR / "analytics.db"
 EASTERN_TIME = ZoneInfo("America/New_York")
+
+
+def get_db_connection():
+    connection = sqlite3.connect(ANALYTICS_DB)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_analytics_db():
+    with get_db_connection() as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                challenge_number INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                result TEXT NOT NULL,
+                submitted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        connection.commit()
+
+
+def log_submission(challenge_number, event_type, result):
+    with get_db_connection() as connection:
+        connection.execute(
+            """
+            INSERT INTO submissions (
+                challenge_number,
+                event_type,
+                result,
+                submitted_at
+            ) VALUES (?, ?, ?, datetime('now'))
+            """,
+            (challenge_number, event_type, result),
+        )
+        connection.commit()
+
+
+def require_admin_access():
+    auth = request.authorization
+    expected_user = os.environ.get("ADMIN_USERNAME", "admin")
+    expected_password = os.environ.get("ADMIN_PASSWORD", "change-me")
+
+    if auth is None:
+        return False
+
+    return (
+        auth.username == expected_user
+        and auth.password == expected_password
+    )
+
+
+init_analytics_db()
+
 
 def scramble_word(word, random_generator):
     word = word.upper()
@@ -125,6 +184,8 @@ def home():
                 trivia_result = "correct"
             else:
                 trivia_result = "incorrect"
+
+            log_submission(challenge_number, "trivia", trivia_result)
         else:
             guess = request.form.get("guess", "")
 
@@ -135,6 +196,8 @@ def home():
                 result = "correct"
             else:
                 result = "incorrect"
+
+            log_submission(challenge_number, "scramble", result)
 
     return render_template(
         "index.html",
@@ -149,6 +212,39 @@ def home():
         player_name=player_name,
         next_midnight=next_midnight.isoformat()
     )
+
+
+@app.route("/admin/analytics")
+def analytics_summary():
+    if not require_admin_access():
+        return (
+            "Unauthorized",
+            401,
+            {"WWW-Authenticate": "Basic realm='Admin Area'"},
+        )
+
+    with get_db_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                event_type,
+                result,
+                COUNT(*) AS count
+            FROM submissions
+            GROUP BY event_type, result
+            ORDER BY event_type, result
+            """
+        ).fetchall()
+
+    summary = []
+    for row in rows:
+        summary.append(f"{row['event_type']} {row['result']}: {row['count']}")
+
+    if not summary:
+        summary.append("No submissions yet.")
+
+    html = "<h1>Buffalo Scramble Analytics</h1><ul><li>" + "</li><li>".join(summary) + "</li></ul>"
+    return html
 
 
 if __name__ == "__main__":
