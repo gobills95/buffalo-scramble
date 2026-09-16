@@ -1,12 +1,14 @@
 import os
 import random
+import secrets
 import sqlite3
 from datetime import datetime, time, timedelta
-from flask import Flask, render_template, request
+from flask import Flask, redirect, render_template, request, session, url_for
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "local-development-key")
 
 BASE_DIR = Path(__file__).resolve().parent
 PLAYERS_FILE = BASE_DIR / "players.txt"
@@ -82,6 +84,156 @@ def require_admin_access():
     return (
         auth.username == expected_user
         and auth.password == expected_password
+    )
+
+
+CARD_RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+CARD_SUITS = ["Clubs", "Diamonds", "Hearts", "Spades"]
+CARD_SUIT_SYMBOLS = {
+    "Clubs": "♣",
+    "Diamonds": "♦",
+    "Hearts": "♥",
+    "Spades": "♠",
+}
+CARD_VALUES = {
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    "J": 10,
+    "Q": 10,
+    "K": 10,
+    "A": 11,
+}
+BET_OPTIONS = (10, 50, 100)
+
+
+def create_deck():
+    deck = [
+        {
+            "rank": rank,
+            "suit": suit,
+            "suit_symbol": CARD_SUIT_SYMBOLS[suit],
+            "suit_color": "red" if suit in {"Diamonds", "Hearts"} else "black",
+        }
+        for suit in CARD_SUITS
+        for rank in CARD_RANKS
+    ]
+    secrets.SystemRandom().shuffle(deck)
+    return deck
+
+
+def hand_value(hand):
+    value = sum(CARD_VALUES[card["rank"]] for card in hand)
+    aces = sum(card["rank"] == "A" for card in hand)
+
+    while value > 21 and aces:
+        value -= 10
+        aces -= 1
+
+    return value
+
+
+def hand_is_blackjack(hand):
+    return len(hand) == 2 and hand_value(hand) == 21
+
+
+def deal_card(game, hand):
+    hand.append(game["deck"].pop())
+
+
+def play_dealer_hand(game):
+    while hand_value(game["dealer_hand"]) < 17:
+        deal_card(game, game["dealer_hand"])
+
+def settle_blackjack_hand(game):
+    play_dealer_hand(game)
+
+    player_hand = game["player_hand"]
+    dealer_hand = game["dealer_hand"]
+    player_value = hand_value(player_hand)
+    dealer_value = hand_value(dealer_hand)
+    player_blackjack = hand_is_blackjack(player_hand)
+    dealer_blackjack = hand_is_blackjack(dealer_hand)
+
+    if player_value > 21:
+        outcome = "loss"
+        net_amount = -game["bet"]
+    elif player_blackjack and not dealer_blackjack:
+        outcome = "blackjack"
+        net_amount = int(game["bet"] * 1.5)
+    elif dealer_blackjack and not player_blackjack:
+        outcome = "loss"
+        net_amount = -game["bet"]
+    elif dealer_value > 21 or player_value > dealer_value:
+        outcome = "win"
+        net_amount = game["bet"]
+    elif player_value == dealer_value:
+        outcome = "push"
+        net_amount = 0
+    else:
+        outcome = "loss"
+        net_amount = -game["bet"]
+
+    resolution = {
+        "hand_number": game["hand_number"] + 1,
+        "player_hand": player_hand,
+        "dealer_hand": dealer_hand,
+        "player_value": player_value,
+        "dealer_value": dealer_value,
+        "bet": game["bet"],
+        "outcome": outcome,
+        "net_amount": net_amount,
+    }
+
+    game["results"].append(resolution)
+    game["total_amount"] += net_amount
+    game["last_resolution"] = resolution
+
+    if len(game["results"]) == 3:
+        game["phase"] = "reveal"
+        game["final_result_ready"] = True
+        return
+
+    game["phase"] = "reveal"
+    game["final_result_ready"] = False
+
+    # Keep a separate complete state for the final net-winnings modal.
+    if len(game["results"]) >= 3:
+        game["phase"] = "complete"
+        game["final_result_ready"] = True
+
+
+def start_blackjack_game():
+    game = {
+        "deck": create_deck(),
+        "hand_number": 0,
+        "player_hand": [],
+        "dealer_hand": [],
+        "bet": None,
+        "results": [],
+        "total_amount": 0,
+        "phase": "betting",
+    }
+    return game
+
+
+def blackjack_view(game):
+    return render_template(
+        "blackjack.html",
+        game=game,
+        bet_options=BET_OPTIONS,
+        player_value=hand_value(game["player_hand"]),
+        dealer_value=(
+            hand_value(game["dealer_hand"])
+            if game["phase"] == "complete"
+            else None
+        ),
     )
 
 
@@ -190,8 +342,9 @@ def home():
             trivia_options[0]
         )
 
-    result = None
-    trivia_result = None
+    result = session.get("scramble_result")
+    trivia_result = session.get("trivia_result")
+    blackjack_result = session.get("blackjack_result")
 
     if request.method == "POST":
         if request.form.get("action") == "trivia":
@@ -203,7 +356,9 @@ def home():
             else:
                 trivia_result = "incorrect"
 
+            session["trivia_result"] = trivia_result
             log_submission(challenge_number, "trivia", trivia_result)
+            return redirect(url_for("blackjack"))
         else:
             guess = request.form.get("guess", "")
 
@@ -215,6 +370,7 @@ def home():
             else:
                 result = "incorrect"
 
+            session["scramble_result"] = result
             log_submission(challenge_number, "scramble", result)
 
     return render_template(
@@ -227,9 +383,95 @@ def home():
         trivia_options=trivia_options,
         trivia_answer=selected_trivia["answer"],
         trivia_result=trivia_result,
+        blackjack_result=blackjack_result,
         player_name=player_name,
         next_midnight=next_midnight.isoformat()
     )
+
+
+@app.route("/blackjack", methods=["GET", "POST"])
+def blackjack():
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        game = session.get("blackjack_game")
+
+        if game and "phase" not in game:
+            game = start_blackjack_game()
+            session["blackjack_game"] = game
+
+        if game and game["phase"] != "complete":
+            if action == "bet" and game["phase"] == "betting":
+                try:
+                    amount = int(request.form.get("amount", ""))
+                except ValueError:
+                    amount = None
+
+                if amount in BET_OPTIONS:
+                    game["bet"] = amount
+                    game["player_hand"] = []
+                    game["dealer_hand"] = []
+
+                    for _ in range(2):
+                        deal_card(game, game["player_hand"])
+                        deal_card(game, game["dealer_hand"])
+
+                    game["phase"] = "playing"
+
+                    if hand_is_blackjack(game["player_hand"]):
+                        settle_blackjack_hand(game)
+
+            elif action == "hit" and game["phase"] == "playing":
+                deal_card(game, game["player_hand"])
+
+                if hand_value(game["player_hand"]) >= 21:
+                    settle_blackjack_hand(game)
+
+            elif action == "stand" and game["phase"] == "playing":
+                settle_blackjack_hand(game)
+
+            elif action == "continue-reveal" and game["phase"] == "reveal":
+                if game.get("final_result_ready"):
+                    game["phase"] = "complete"
+                    session["blackjack_game"] = game
+                    return redirect(url_for("blackjack"))
+
+                game["hand_number"] += 1
+                game["player_hand"] = []
+                game["dealer_hand"] = []
+                game["bet"] = None
+                game["last_resolution"] = None
+                game["phase"] = "betting"
+
+            elif action == "finalize-results" and game["phase"] == "complete":
+                session["blackjack_result"] = game["total_amount"]
+                session.pop("blackjack_game", None)
+                return redirect(url_for("home"))
+
+            session["blackjack_game"] = game
+
+        elif game and game["phase"] == "complete":
+            if action == "finalize-results":
+                session["blackjack_result"] = game["total_amount"]
+                session.pop("blackjack_game", None)
+                return redirect(url_for("home"))
+
+            return redirect(url_for("blackjack"))
+
+        return redirect(url_for("blackjack"))
+
+    game = session.get("blackjack_game")
+
+    if game is None or "phase" not in game:
+        game = start_blackjack_game()
+        session["blackjack_game"] = game
+
+    return blackjack_view(game)
+
+
+@app.route("/blackjack/results")
+def blackjack_results():
+    return redirect(url_for("home"))
 
 
 @app.route("/admin/analytics")

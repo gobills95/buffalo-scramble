@@ -162,6 +162,16 @@
                 <p>Come back tomorrow for a new scramble.</p>
             </div>
 
+            {% if trivia_result is not none and blackjack_result is not none %}
+                <div class="blackjack-summary">
+                    <p class="blackjack-summary-label">BLACKJACK RESULT</p>
+                    <p class="blackjack-summary-total">
+                        {% if blackjack_result >= 0 %}+{% endif %}${{ blackjack_result }}
+                    </p>
+                    <p>Net result after three hands</p>
+                </div>
+            {% endif %}
+
             {% if trivia_result is not none %}
                 <button
                     type="button"

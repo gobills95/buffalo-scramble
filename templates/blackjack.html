@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack | Buffalo Scramble</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="blackjack-container">
+        <header class="blackjack-header">
+            <p class="eyebrow">BUFFALO SCRAMBLE</p>
+            <h1>Three-Hand Blackjack</h1>
+            <p class="blackjack-intro">Three sequential hands. Simulated bets only.</p>
+        </header>
+
+        <section class="blackjack-table">
+            <div class="blackjack-scoreboard">
+                <div>
+                    <p class="score-label">HAND</p>
+                    <p class="score-value">{{ game.hand_number + 1 }} of 3</p>
+                </div>
+                <div>
+                    <p class="score-label">NET TOTAL</p>
+                    <p class="score-value{% if game.total_amount > 0 %} positive{% elif game.total_amount < 0 %} negative{% endif %}">
+                        {% if game.total_amount >= 0 %}+{% endif %}${{ game.total_amount }}
+                    </p>
+                </div>
+            </div>
+
+            {% if game.phase == "betting" %}
+                <div class="bet-panel">
+                    <p class="label">CHOOSE YOUR BET</p>
+                    <p class="bet-copy">Pick a simulated wager for hand {{ game.hand_number + 1 }}.</p>
+                    <div class="bet-options">
+                        {% for amount in bet_options %}
+                            <form method="POST">
+                                <input type="hidden" name="action" value="bet">
+                                <input type="hidden" name="amount" value="{{ amount }}">
+                                <button type="submit">Bet ${{ amount }}</button>
+                            </form>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% elif game.phase == "playing" or game.phase == "reveal" %}
+                <div class="dealer-area{% if game.phase == 'reveal' %} reveal-stage{% endif %}"{% if game.phase == 'reveal' %} data-dealer-reveal="true"{% endif %}>
+                    <div class="table-heading">
+                        <p class="label">DEALER</p>
+                        {% if game.phase == "reveal" %}
+                            <p class="hand-total">Total: {{ game.last_resolution.dealer_value }}</p>
+                        {% elif game.phase == "complete" %}
+                            <p class="hand-total">Total: {{ dealer_value }}</p>
+                        {% else %}
+                            <p class="hand-total">One card hidden</p>
+                        {% endif %}
+                    </div>
+                    <div class="cards">
+                        {% for card in game.dealer_hand %}
+                            {% if game.phase == "playing" and loop.first %}
+                                <div class="playing-card">
+                                    <strong>{{ card.rank }}</strong>
+                                    <span class="suit-icon {{ 'suit-red' if card.suit_color == 'red' else 'suit-black' }}">{{ card.suit_symbol }}</span>
+                                </div>
+                            {% elif game.phase == "playing" %}
+                                <div class="playing-card hidden-card">?</div>
+                            {% elif game.phase == "reveal" and loop.first %}
+                                <div class="playing-card">
+                                    <strong>{{ card.rank }}</strong>
+                                    <span class="suit-icon {{ 'suit-red' if card.suit_color == 'red' else 'suit-black' }}">{{ card.suit_symbol }}</span>
+                                </div>
+                            {% else %}
+                                <div class="playing-card dealer-reveal-card dealer-card-hidden">
+                                    <strong>{{ card.rank }}</strong>
+                                    <span class="suit-icon {{ 'suit-red' if card.suit_color == 'red' else 'suit-black' }}">{{ card.suit_symbol }}</span>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="current-hand-area">
+                    <div class="table-heading">
+                        <p class="label">YOUR HAND {{ game.hand_number + 1 }}</p>
+                        <p class="hand-total">Bet: ${{ game.bet }} | Total: {{ player_value }}</p>
+                    </div>
+                    <div class="hand-total-row">
+                        <span>Player: <strong>{{ player_value }}</strong></span>
+                        <span>Dealer: <strong>{% if game.phase == 'reveal' %}{{ game.last_resolution.dealer_value }}{% else %}{{ game.dealer_hand[0]['rank'] if game.dealer_hand else '?' }}{% endif %}</strong></span>
+                    </div>
+                    <div class="cards player-cards">
+                        {% for card in game.player_hand %}
+                            <div class="playing-card player-card">
+                                <strong>{{ card.rank }}</strong>
+                                <span class="suit-icon {{ 'suit-red' if card.suit_color == 'red' else 'suit-black' }}">{{ card.suit_symbol }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if game.phase == "playing" %}
+                        <div class="hand-actions">
+                            <form method="POST">
+                                <input type="hidden" name="action" value="hit">
+                                <button type="submit">Hit</button>
+                            </form>
+                            <form method="POST">
+                                <input type="hidden" name="action" value="stand">
+                                <button type="submit" class="secondary-button">Stand</button>
+                            </form>
+                        </div>
+                    {% elif game.phase == "reveal" %}
+                        <div class="reveal-outcome" hidden>
+                            <p class="label">ROUND RESULT</p>
+                            <p class="outcome-pill outcome-{{ game.last_resolution.outcome }}">{{ game.last_resolution.outcome|capitalize }}</p>
+                            <p class="outcome-total{% if game.last_resolution.net_amount > 0 %} positive{% elif game.last_resolution.net_amount < 0 %} negative{% endif %}">
+                                {% if game.last_resolution.net_amount >= 0 %}+{% endif %}${{ game.last_resolution.net_amount }}
+                            </p>
+                        </div>
+
+                        <form method="POST" class="continue-reveal-form">
+                            <input type="hidden" name="action" value="continue-reveal">
+                            <button type="submit" disabled>
+                                {% if game.final_result_ready %}Continue to Results{% else %}Next Hand{% endif %}
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if game.results %}
+                <section class="round-history">
+                    <p class="label">COMPLETED HANDS</p>
+                    {% for result in game.results %}
+                        <article class="history-row">
+                            <div>
+                                <strong>Hand {{ result.hand_number }}</strong>
+                                <span>Bet ${{ result.bet }} | Player total: {{ result.player_value }} | Dealer total: {{ result.dealer_value }}</span>
+                            </div>
+                            <div class="history-outcome {{ result.outcome }}">
+                                <strong>{{ result.outcome|capitalize }}</strong>
+                                <span>{% if result.net_amount >= 0 %}+{% endif %}${{ result.net_amount }}</span>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </section>
+            {% endif %}
+
+            {% if game.phase == "complete" %}
+                <div class="confirmation-modal" aria-live="polite">
+                    <div class="confirmation-box">
+                        <p class="confirmation-label">NET WINNINGS</p>
+                        <p class="confirmation-total{% if game.total_amount > 0 %} positive{% elif game.total_amount < 0 %} negative{% endif %}">
+                            {% if game.total_amount >= 0 %}+{% endif %}${{ game.total_amount }}
+                        </p>
+                        <form method="POST">
+                            <input type="hidden" name="action" value="finalize-results">
+                            <button type="submit">Continue to Results</button>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+
+        </section>
+
+        <a class="back-link" href="{{ url_for('home') }}">Back to Buffalo Scramble</a>
+    </main>
+
+    <script>
+        window.addEventListener('load', () => {
+            const revealStage = document.querySelector('.reveal-stage');
+            if (!revealStage) {
+                return;
+            }
+
+            const cards = Array.from(revealStage.querySelectorAll('.dealer-reveal-card'));
+            const resultBox = revealStage.closest('.blackjack-table').querySelector('.reveal-outcome');
+            const continueButton = revealStage.closest('.blackjack-table').querySelector('.continue-reveal-form button');
+
+            if (resultBox) {
+                resultBox.hidden = true;
+            }
+            if (continueButton) {
+                continueButton.disabled = true;
+            }
+
+            if (cards.length === 0) {
+                if (resultBox) {
+                    resultBox.hidden = false;
+                }
+                if (continueButton) {
+                    continueButton.disabled = false;
+                }
+                return;
+            }
+
+            let index = 0;
+            const revealNextCard = () => {
+                if (index >= cards.length) {
+                    if (resultBox) {
+                        resultBox.hidden = false;
+                    }
+                    if (continueButton) {
+                        continueButton.disabled = false;
+                    }
+                    return;
+                }
+
+                const card = cards[index];
+                card.style.visibility = 'visible';
+                card.classList.remove('dealer-card-hidden');
+                card.classList.add('revealed');
+                index += 1;
+                setTimeout(revealNextCard, 420);
+            };
+
+            requestAnimationFrame(() => {
+                setTimeout(revealNextCard, 180);
+            });
+        });
+    </script>
+</body>
+</html>
